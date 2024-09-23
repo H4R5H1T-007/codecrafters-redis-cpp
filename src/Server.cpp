@@ -53,13 +53,18 @@ int main(int argc, char **argv) {
   
   std::cout << "Waiting for a client to connect...\n";
   
-  int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  std::cout << "Client connected\n";
+  while(true){
+    int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    if(clientSocket < 0){
+      break;
+    }
+    std::cout << "Client connected\n";
+    const char* message = "+PONG\r\n";
+    char buffer[128];
+    while(recv(clientSocket, buffer, 127, 0) > 0){
+      int n = write(clientSocket, message, strlen(message));
+    }
 
-  const char* message = "+PONG\r\n";
-  char buffer[128];
-  while(recv(clientSocket, buffer, 127, 0) > 0){
-    int n = write(clientSocket, message, strlen(message));
   }
   
   close(server_fd);
