@@ -57,8 +57,10 @@ int main(int argc, char **argv) {
   std::cout << "Client connected\n";
 
   const char* message = "+PONG\r\n";
-
-  int n = write(clientSocket, message, strlen(message));
+  char buffer[128];
+  while(recv(clientSocket, buffer, 127, 0) > 0){
+    int n = write(clientSocket, message, strlen(message));
+  }
   
   close(server_fd);
 
