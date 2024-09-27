@@ -7,6 +7,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <future>
+#include <queue>
+#include <mutex>
+
+std::queue<int> client_queue;
+std::mutex client_queue_lock;
+
+int asyncAccept(int, sockaddr *, socklen_t *);
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -47,16 +55,27 @@ int main(int argc, char **argv) {
     std::cerr << "listen failed\n";
     return 1;
   }
-  
   struct sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
+  auto async_accept = std::async(asyncAccept, server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   
   std::cout << "Waiting for a client to connect...\n";
-  
+  // Passing accepting connections to different thread so main thread (and inturn event loop) remains unblocked
+
   while(true){
-    int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    // struct sockaddr_in client_addr;
+    // int client_addr_len = sizeof(client_addr);
+    // int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    int clientSocket = -1;
+    {
+      std::lock_guard<std::mutex> queue_lock(client_queue_lock);
+      if(!client_queue.empty()){
+        clientSocket = client_queue.front();
+        client_queue.pop();
+      }
+    }
     if(clientSocket < 0){
-      break;
+      continue;
     }
     std::cout << "Client connected\n";
     const char* message = "+PONG\r\n";
@@ -70,4 +89,16 @@ int main(int argc, char **argv) {
   close(server_fd);
 
   return 0;
+}
+
+int asyncAccept(int server_fd, sockaddr *, socklen_t *){
+  while(true){
+    struct sockaddr_in client_addr;
+    int client_addr_len = sizeof(client_addr);
+    int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    {
+      std::lock_guard<std::mutex> queue_lock(client_queue_lock);
+      client_queue.push(clientSocket);
+    }
+  }
 }
