@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   }
   struct sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
-  // auto async_accept = std::async(asyncAccept, server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  auto async_accept = std::async(asyncAccept, server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   
   std::cout << "Waiting for a client to connect...\n";
   // Passing accepting connections to different thread so main thread (and inturn event loop) remains unblocked
