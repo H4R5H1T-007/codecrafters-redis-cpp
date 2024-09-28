@@ -97,6 +97,7 @@ int asyncAccept(int server_fd, sockaddr *, socklen_t *){
     int client_addr_len = sizeof(client_addr);
     int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
     {
+      std::cout<<"Async Thread\n";
       std::lock_guard<std::mutex> queue_lock(client_queue_lock);
       client_queue.push(clientSocket);
     }
