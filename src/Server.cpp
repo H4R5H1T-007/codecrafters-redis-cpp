@@ -77,6 +77,7 @@ int main(int argc, char **argv) {
     if(clientSocket < 0){
       continue;
     }
+    std::cout<<clientSocket<<std::endl;
     std::cout << "Client connected\n";
     const char* message = "+PONG\r\n";
     char buffer[128];
