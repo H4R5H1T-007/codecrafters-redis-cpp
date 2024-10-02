@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
           perror("poll failed. Error");
           break;
       }
+      if(activity == 0) continue;
       std::cout<<"Poll activated\n";
       // if(count%1000 == 0){
       //   std::cout<<"16k reached.\n";
