@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
       std::vector<std::future<void>> task_list;
 
       for (int i = 0; i < fds.size(); ) {
-          std::cout<<"i is "<<i<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
+          std::cout<<"i is "<<i<<"fd revents is "<<fds[i].revents<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
           if (fds[i].revents == POLLIN) {
               if (fds[i].fd == server_fd) {
                   // New connection
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
               } else {
                 
                 task_list.push_back(std::async(asyncResponse, fds[i].fd));
-                fds[i].fd = -1;
+                // fds[i].fd = -1;
                   // Data from client
                   // char buffer[1024] = {0};
                   // int valread = read(fds[i].fd, buffer, 1024);
