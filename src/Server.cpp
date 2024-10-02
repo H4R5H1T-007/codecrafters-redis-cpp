@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
           if ((fds[i]).revents & POLLIN && fds[i].fd != -1) {
               if (fds[i].fd == server_fd) {
                   // New connection
+                  std::cout<<"It came inside this fd\n";
                   new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
                   std::cout<<"new socket is "<<new_socket<<"\n";
                   if (new_socket < 0) {
