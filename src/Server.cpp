@@ -87,7 +87,8 @@ int main(int argc, char **argv) {
           if ((fds[i]).revents & POLLIN && fds[i].fd != -1) {
               if (fds[i].fd == server_fd) {
                   // New connection
-                  if ((new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len)) < 0) {
+                  new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
+                  if (new_socket < 0) {
                       std::cerr << "Accept failed" << std::endl;
                       continue;
                   }
