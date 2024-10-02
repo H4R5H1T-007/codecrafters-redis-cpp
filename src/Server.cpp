@@ -70,6 +70,9 @@ int main(int argc, char **argv) {
 
   while (true) {
       int activity = poll(fds.data(), fds.size(), -1);
+      for(auto &i: fds) {
+        std::cout<<"fds fd are "<<i.fd<<"\n";
+      }
       if (activity < 0) {
           std::cerr << "Poll error" << std::endl;
           perror("poll failed. Error");
@@ -101,7 +104,6 @@ int main(int argc, char **argv) {
               } else {
                 
                 task_list.push_back(std::async(asyncResponse, fds[i].fd));
-                fds.push_back({server_fd, POLLIN, 0});
                 fds[i].fd = -1;
                   // Data from client
                   // char buffer[1024] = {0};
