@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
       for (int i = 0; i < fds.size();++i) {
           std::cout<<"i is "<<i<<"fd revents is "<<fds[i].revents<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
           if (fds[i].revents &  POLLIN) {
-              if (fds[i].fd == server_fd) {
+              if (fds[i].fd) {
                   // New connection
                   std::cout<<"It came inside this fd\n";
                   new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
