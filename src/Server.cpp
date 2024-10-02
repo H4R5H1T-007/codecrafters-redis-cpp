@@ -131,6 +131,9 @@ int main(int argc, char **argv) {
            }
       }
 
+       for (auto& task : task_list) {
+            task.wait();
+        }
       // std::vector<pollfd> temp;
       // // temp.push_back({server_fd, POLLIN, 0});
       // for(auto it = fds.begin(); it != fds.end(); it++){
