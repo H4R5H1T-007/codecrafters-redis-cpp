@@ -86,9 +86,9 @@ int main(int argc, char **argv) {
 
       std::vector<std::future<void>> task_list;
 
-      for (int i = 0; i < fds.size(); ) {
+      for (int i = 0; i < fds.size();++i) {
           std::cout<<"i is "<<i<<"fd revents is "<<fds[i].revents<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
-          if (fds[i].revents == POLLIN) {
+          if (fds[i].revents &  POLLIN) {
               if (fds[i].fd == server_fd) {
                   // New connection
                   std::cout<<"It came inside this fd\n";
@@ -122,8 +122,13 @@ int main(int argc, char **argv) {
                   // const char* message = "+PONG\r\n";
                   // send(fds[i].fd, message, strlen(message), 0);
               }
-          }
-          ++i;
+          } else if (fds[i].revents & (POLLHUP | POLLERR)) {
+                // Connection closed or error
+                std::cout << "Connection closed or error on fd: " << fds[i].fd << std::endl;
+                close(fds[i].fd);
+                fds.erase(fds.begin() + i);
+                --i;  // Adjust index after erasing
+           }
       }
 
       // std::vector<pollfd> temp;
