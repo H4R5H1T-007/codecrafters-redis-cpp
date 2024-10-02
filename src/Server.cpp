@@ -170,7 +170,9 @@ int main(int argc, char **argv) {
 
   // }
   
-  close(server_fd);
+  for (const auto& fd : fds) {
+        close(fd.fd);
+    }
 
   return 0;
 }
