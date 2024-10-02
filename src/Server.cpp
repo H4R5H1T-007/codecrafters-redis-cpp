@@ -63,119 +63,77 @@ int main(int argc, char **argv) {
   struct sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
   // auto async_accept = std::async(asyncAccept, server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  std::vector<pollfd> fds;
-  int new_socket;
-  fds.push_back({server_fd, POLLIN, 0});
-  int count = 0;
+    std::vector<pollfd> fds;
+    fds.push_back({server_fd, POLLIN, 0});
+    int count = 0;
 
-  while (true) {
-      int activity = poll(fds.data(), fds.size(), -1);
-      for(auto &i: fds) {
-        std::cout<<"fds fd are "<<i.fd<<"\n";
-      }
-      if (activity < 0) {
-          std::cerr << "Poll error" << std::endl;
-          perror("poll failed. Error");
-          break;
-      }
-      if(activity == 0) continue;
-      std::cout<<"activity is "<<activity<<" and Poll activated\n";
-      // if(count%1000 == 0){
-      //   std::cout<<"16k reached.\n";
-      // }
+    while (true) {
+        std::cout << "Entering poll() with " << fds.size() << " fds\n";
+        int activity = poll(fds.data(), fds.size(), -1);
+        
+        if (activity < 0) {
+            std::cerr << "Poll error: " << strerror(errno) << std::endl;
+            break;
+        }
+        
+        std::cout << "Activity: " << activity << ", Poll activated\n";
 
-      std::vector<std::future<void>> task_list;
-
-      for (int i = 0; i < fds.size();++i) {
-          std::cout<<"i is "<<i<<"fd revents is "<<fds[i].revents<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
-          if (fds[i].revents &  POLLIN) {
-              if (fds[i].fd == server_fd) {
-                  // New connection
-                  std::cout<<"It came inside this fd\n";
-                  new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
-                  std::cout<<"new socket is "<<new_socket<<"\n";
-                  if (new_socket < 0) {
-                      std::cerr << "Accept failed" << std::endl;
-                      continue;
-                  }
-                  count++;
-                  // std::cout<<(*it).fd<<" "<<new_socket<<std::endl;
-
-                  fds.push_back({new_socket, POLLIN, 0});
-              } else {
-                
-                task_list.push_back(std::async(asyncResponse, fds[i].fd));
-                // fds[i].fd = -1;
-                  // Data from client
-                  // char buffer[1024] = {0};
-                  // int valread = read(fds[i].fd, buffer, 1024);
-                  // if (valread <= 0) {
-                  //     // Connection closed
-                  //     close(fds[i].fd);
-                  //     // it = fds.erase(it);
-                  //     fds[i].fd = -1;
-                  //     continue;
-                  // }
-
-                  // // std::cout << "Received: " << buffer << std::endl;
-                  // // Echo back
-                  // const char* message = "+PONG\r\n";
-                  // send(fds[i].fd, message, strlen(message), 0);
-              }
-          } else if (fds[i].revents & (POLLHUP | POLLERR)) {
+        for (size_t i = 0; i < fds.size(); ++i) {
+            std::cout << "Checking fd: " << fds[i].fd << ", revents: " << fds[i].revents << std::endl;
+            
+            if (fds[i].revents & POLLIN) {
+                if (fds[i].fd == server_fd) {
+                    // New connection
+                    std::cout << "New connection incoming\n";
+                    int new_socket = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
+                    
+                    if (new_socket < 0) {
+                        std::cerr << "Accept failed: " << strerror(errno) << std::endl;
+                    } else {
+                        std::cout << "New socket accepted: " << new_socket << std::endl;
+                        fds.push_back({new_socket, POLLIN, 0});
+                        count++;
+                    }
+                } else {
+                    // Existing connection has data
+                    std::cout << "Data received on fd: " << fds[i].fd << std::endl;
+                    char buffer[1024] = {0};
+                    int valread = read(fds[i].fd, buffer, sizeof(buffer));
+                    if (valread > 0) {
+                        std::cout << "Received " << valread << " bytes: " << buffer << std::endl;
+                        const char* message = "+PONG\r\n";
+                        int sent = send(fds[i].fd, message, strlen(message), 0);
+                        std::cout << "Sent " << sent << " bytes: " << message << std::endl;
+                    } else if (valread == 0) {
+                        std::cout << "Client disconnected: " << fds[i].fd << std::endl;
+                        close(fds[i].fd);
+                        fds.erase(fds.begin() + i);
+                        --i;
+                    } else {
+                        std::cerr << "Read error on socket " << fds[i].fd << ": " << strerror(errno) << std::endl;
+                        close(fds[i].fd);
+                        fds.erase(fds.begin() + i);
+                        --i;
+                    }
+                }
+            } else if (fds[i].revents & (POLLHUP | POLLERR)) {
                 // Connection closed or error
                 std::cout << "Connection closed or error on fd: " << fds[i].fd << std::endl;
                 close(fds[i].fd);
                 fds.erase(fds.begin() + i);
                 --i;  // Adjust index after erasing
-           }
-      }
-
-       for (auto& task : task_list) {
-            task.wait();
+            }
         }
-      // std::vector<pollfd> temp;
-      // // temp.push_back({server_fd, POLLIN, 0});
-      // for(auto it = fds.begin(); it != fds.end(); it++){
-      //   if((*it).fd != -1)
-      //     temp.push_back(*it);
-      // }
-      // fds = temp;
-  }
-  
-  // Passing accepting connections to different thread so main thread (and inturn event loop) remains unblocked
+    }
 
-  // while(true){
-  //   // struct sockaddr_in client_addr;
-  //   // int client_addr_len = sizeof(client_addr);
-  //   // int clientSocket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  //   int clientSocket = -1;
-  //   {
-  //     // std::lock_guard<std::mutex> queue_lock(client_queue_lock);
-  //     if(!client_queue.empty()){
-  //       clientSocket = client_queue.front();
-  //       client_queue.pop();
-  //     }
-  //   }
-  //   if(clientSocket < 0){
-  //     continue;
-  //   }
-  //   std::cout<<"Main Thread"<<clientSocket<<std::endl;
-  //   std::cout << "Client connected\n";
-  //   const char* message = "+PONG\r\n";
-  //   char buffer[128];
-  //   while(recv(clientSocket, buffer, 127, 0) > 0){
-  //     int n = write(clientSocket, message, strlen(message));
-  //   }
-
-  // }
-  
-  for (const auto& fd : fds) {
+    // Cleanup
+    for (const auto& fd : fds) {
         close(fd.fd);
     }
 
-  return 0;
+    return 0;
 }
+
 
 void asyncResponse(int fd){
   char buffer[1024];
