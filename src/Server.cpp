@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
       std::vector<std::future<void>> task_list;
 
       for (int i = 0; i < fds.size(); ) {
-          std::cout<<"file desc is "<<fds[i]<<" POLLIn is "<<POLLIN<<"\n";
+          std::cout<<"file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<"\n";
           if ((fds[i]).revents & POLLIN && fds[i].fd != -1) {
               if (fds[i].fd == server_fd) {
                   // New connection
