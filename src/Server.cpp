@@ -125,13 +125,13 @@ int main(int argc, char **argv) {
           ++i;
       }
 
-      std::vector<pollfd> temp;
-      // temp.push_back({server_fd, POLLIN, 0});
-      for(auto it = fds.begin(); it != fds.end(); it++){
-        if((*it).fd != -1)
-          temp.push_back(*it);
-      }
-      fds = temp;
+      // std::vector<pollfd> temp;
+      // // temp.push_back({server_fd, POLLIN, 0});
+      // for(auto it = fds.begin(); it != fds.end(); it++){
+      //   if((*it).fd != -1)
+      //     temp.push_back(*it);
+      // }
+      // fds = temp;
   }
   
   // Passing accepting connections to different thread so main thread (and inturn event loop) remains unblocked
