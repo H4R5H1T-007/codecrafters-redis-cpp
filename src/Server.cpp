@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
       for (int i = 0; i < fds.size(); ) {
           std::cout<<"i is "<<i<<" file desc is "<<fds[i].fd<<" POLLIn is "<<POLLIN<<" server_fd is "<<server_fd<<"\n";
-          if ((fds[i]).revents & POLLIN) {
+          if (POLLIN) {
               if (fds[i].fd == server_fd) {
                   // New connection
                   std::cout<<"It came inside this fd\n";
