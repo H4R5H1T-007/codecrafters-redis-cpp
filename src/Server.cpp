@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
               } else {
                 
                 task_list.push_back(std::async(asyncResponse, fds[i].fd));
+                fds.push_back({server_fd, POLLIN, 0});
                 fds[i].fd = -1;
                   // Data from client
                   // char buffer[1024] = {0};
