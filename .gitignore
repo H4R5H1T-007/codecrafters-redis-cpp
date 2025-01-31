@@ -48,4 +48,5 @@ _deps
 build/
 vcpkg_installed
 results.txt
+unique_ptr_info.md
 .vscode
