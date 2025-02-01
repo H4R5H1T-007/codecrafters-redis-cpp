@@ -12,7 +12,7 @@ struct clientContext{
     std::string writeContext;
     std::vector<std::string> writeBeforeRESP;
     std::vector<std::string> readArguments;
-    clientContext(int fd): clientFD{fd, POLL_IN | POLL_PRI}
+    clientContext(int fd): clientFD{fd, POLLIN | POLLPRI}
     {
         writeContext = "*0\r\n";
     }
