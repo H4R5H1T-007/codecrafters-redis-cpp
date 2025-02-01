@@ -5,7 +5,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <sstream>
-#include <cerrno>
+#include <cstring>
 
 std::vector<std::shared_ptr<clientContext>> cContext;
 // std::vector<pollfd> clients;
