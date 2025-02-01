@@ -3,6 +3,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <functional>
+#include <memory>
 
 std::vector<std::string> split(std::string & input, const char & delimeter = ' '){
     std::vector<std::string> tokens;
