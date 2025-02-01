@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <memory>
+#include <cerrno>
 
 struct clientContext{
     // int fd;
