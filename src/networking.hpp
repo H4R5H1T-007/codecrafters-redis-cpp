@@ -7,11 +7,12 @@
 #include <arpa/inet.h>
 
 struct clientContext{
-    int fd;
+    // int fd;
+    pollfd clientFD;
     std::string writeContext;
-    std::string writeBeforeRESP;
+    std::vector<std::string> writeBeforeRESP;
     std::vector<std::string> readArguments;
-    clientContext(int fd): fd(fd)
+    clientContext(int fd): clientFD{fd, POLL_IN | POLL_PRI}
     {
         writeContext = "*0\r\n";
     }
@@ -24,11 +25,13 @@ extern struct serverContext{
 } sContext;
 
 // Function declarations
-bool parseRESPInput(char *&buffer, int &length, int client_fd);
+bool parseRESPInput(char *&buffer, int &length, std::shared_ptr<clientContext> & clientData);
 bool pollServer();
 bool initServerConnection();
-bool createBulkRESPString(int client_location);
-bool writeToClientBuffer(int client_location);
+bool createBulkRESPString(std::shared_ptr<clientContext> clientData);
+bool createSimpleRESPString(std::shared_ptr<clientContext> clientData);
+bool writeToClientBuffer(std::shared_ptr<clientContext> clientData);
+bool clearClientContext(std::shared_ptr<clientContext> clientData);
 
 // If you need to share variables between files
-extern std::vector<clientContext> cContext;  // Declaration only
+extern std::vector<std::shared_ptr<clientContext>> cContext;  // Declaration only

@@ -2,4 +2,4 @@
 #include "eventLoop.hpp"
 
 bool cmdTableCreator();
-void commandsHandler(int client_location);
+void commandsHandler(std::shared_ptr<clientContext> clientData);

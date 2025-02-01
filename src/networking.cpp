@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <sstream>
 
-std::vector<clientContext> cContext;
-std::vector<pollfd> clients;
+std::vector<std::shared_ptr<clientContext>> cContext;
+// std::vector<pollfd> clients;
 serverContext sContext;
 
 bool initServerConnection(){
@@ -42,16 +42,18 @@ bool initServerConnection(){
         return 0;
     }
   // auto async_accept = std::async(asyncAccept, sContext.server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    clients.push_back({sContext.server_fd, POLLIN, 0});
-    cContext.push_back(sContext.server_fd);
+    // clients.push_back({sContext.server_fd, POLLIN, 0});
+    cContext.push_back(std::shared_ptr<clientContext>(new clientContext(sContext.server_fd)));
     return 1;
 }
 
-bool parseRESPInput(char *&input, int & input_len, int client_location){
+// TODO: Directly handling charater pointer. Need to handle this properly.
+bool parseRESPInput(char *&input, int & input_len, std::shared_ptr<clientContext>& clientData){
     switch (*input)
     {
         case '*':
         {
+
             int len = 0;
             input++;
             input_len--;
@@ -68,7 +70,7 @@ bool parseRESPInput(char *&input, int & input_len, int client_location){
             input_len -= 2;
             bool res = 1;
             for(int i = 0; res && i < len; i++){
-                res &= parseRESPInput(input, input_len, client_location);
+                res &= parseRESPInput(input, input_len, clientData);
             }
             return res;
         }
@@ -86,7 +88,7 @@ bool parseRESPInput(char *&input, int & input_len, int client_location){
             input += 2; input_len -= 2;
             // cContext[client_location].readContext.append(input, len);
             // cContext[client_location].readContext.push_back(' ');
-            cContext[client_location].readArguments.push_back({input, len});
+            clientData->readArguments.push_back({input, len});
             input += len + 2;
             input_len -= len + 2;
             return 1;
@@ -101,18 +103,22 @@ bool pollServer(){
     // for(int i = 1; i < clients.size(); i++){
     //     std::cout<<clients[i].fd<<" ";
     // }
-    int activity = poll(clients.data(), clients.size(), 0);
-    
-    if (activity < 0) {
-        std::cerr << "Poll error: " << strerror(errno) << std::endl;
-        return 0;
+    // int activity = poll(clients.data(), clients.size(), 0);
+    bool activity = 1;
+    for(auto &i : cContext){
+        activity &= (poll(&i->clientFD, 1, 0) > 0);
     }
+    
+    // if (!activity) {
+    //     std::cerr << "Poll error: " << strerror(errno) << std::endl;
+    //     return 0;
+    // }
 
     for (size_t i = 0; i < cContext.size(); ++i) {
         // std::cout << "Checking fd: " << cContext.clients[i].fd << ", revents: " << cContext.clients[i].revents << std::endl;
         
-        if (clients[i].revents & POLLIN) {
-            if (clients[i].fd == sContext.server_fd) {
+        if (cContext[i]->clientFD.revents & POLLIN) {
+            if (cContext[i]->clientFD.fd == sContext.server_fd) {
                 // New connection
                 // std::cout << "New connection incoming\n";
                 int new_socket = accept(sContext.server_fd, (struct sockaddr *)&sContext.client_addr, (socklen_t*)&sContext.client_addr_len);
@@ -121,15 +127,15 @@ bool pollServer(){
                     std::cerr << "Accept failed: " << strerror(errno) << std::endl;
                 } else {
                     // std::cout << "New socket accepted: " << new_socket << std::endl;
-                    clients.push_back({new_socket, POLLIN, 0});
-                    cContext.push_back(new_socket);
+                    // clients.push_back({new_socket, POLLIN, 0});
+                    cContext.push_back(std::shared_ptr<clientContext>(new clientContext(new_socket)));
                     // count++;
                 }
             } else {
                 // Existing connection has data
                 // std::cout << "Data received on fd: " << cContext.clients[i].fd << std::endl;
                 char buffer[1024];
-                int valread = read(clients[i].fd, buffer, sizeof(buffer));
+                int valread = read(cContext[i]->clientFD.fd, buffer, sizeof(buffer));
                 if (valread > 0) {
                     // std::cout << "Received " << valread << " bytes: " << buffer << std::endl;
                     // printf(buffer);
@@ -140,36 +146,36 @@ bool pollServer(){
                     // auto res = parseClientInput(buffer, valread);
                     // std::cout<<valread<<" "<<buffer<<std::endl;
                     char *temp = buffer;
-                    if(!parseRESPInput(temp, valread, i)){
+                    if(!parseRESPInput(temp, valread, cContext[i])){
                         return 0;
                     }
                     // std::cout<<cContext[i].readContext<<std::endl;
 
-                    el.fileSubmit(commandsHandler, i);
+                    el.fileSubmit(commandsHandler, cContext[i]);
 
                     // char* message = "+PONG\r\n";
                     // int sent = send(clients[i].fd, message, strlen(message), 0);
                     // std::cout << "Sent " << sent << " bytes: " << message << std::endl;
                 } else if (valread == 0) {
                     // std::cout << "Client disconnected: " << cContext.clients[i].fd << std::endl;
-                    close(clients[i].fd);
-                    clients.erase(clients.begin() + i);
+                    // close(clients[i].fd);
+                    // clients.erase(clients.begin() + i);
                     cContext.erase(cContext.begin() + i);
                     --i;
                 } else {
                     // std::cerr << "Read error on socket " << cContext.clients[i].fd << ": " << strerror(errno) << std::endl;
-                    close(clients[i].fd);
-                    clients.erase(clients.begin() + i);
+                    // close(clients[i].fd);
+                    // clients.erase(clients.begin() + i);
                     cContext.erase(cContext.begin() + i);
                     --i;
                 }
 
             }
-        } else if (clients[i].revents & (POLLHUP | POLLERR)) {
+        } else if (cContext[i]->clientFD.revents & (POLLHUP | POLLERR)) {
             // Connection closed or error
             // std::cout << "Connection closed or error on fd: " << cContext.clients[i].fd << std::endl;
-            close(clients[i].fd);
-            clients.erase(clients.begin() + i);
+            // close(clients[i].fd);
+            // clients.erase(clients.begin() + i);
             cContext.erase(cContext.begin() + i);
             --i;
         }
@@ -178,21 +184,34 @@ bool pollServer(){
     return 1;
 }
 
-bool createBulkRESPString(int client_location){
+bool createSimpleRESPString(std::shared_ptr<clientContext> clientData){
+    try
+    {
+        /* code */
+        std::ostringstream res;
+        res<<'+'<<clientData->writeBeforeRESP[0]<<"\r\n";
+        clientData->writeContext = res.str();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return 0;
+    }
+    return 1;
+}
+
+bool createBulkRESPString(std::shared_ptr<clientContext> clientData){
     try
     {
         // int len = buffer.size();
         std::ostringstream res;
-        int len = cContext[client_location].writeBeforeRESP.size();
+        int len = clientData->writeBeforeRESP.size();
         res<<"*"<<len<<"\r\n";
-        std::istringstream iss(cContext[client_location].writeBeforeRESP);
-        std::string token;
 
-        // Split by given delimeter (only single character) (by default it's space)
-        while (std::getline(iss, token, ' ')) {
-            res<<token<<"\r\n";
+        for(auto &token : clientData->writeBeforeRESP){
+            res<<'$'<<token.size()<<"\r\n"<<token<<"\r\n";
         }
-        cContext[client_location].writeContext = res.str();
+        clientData->writeContext = res.str();
     }
     catch(const std::exception& e)
     {
@@ -203,16 +222,16 @@ bool createBulkRESPString(int client_location){
     return 1;
 }
 
-bool readFromClientBuffer(int client_location){
+bool readFromClientBuffer(std::shared_ptr<clientContext> clientData){
     try
     {
         int max_read_size = 1024;
         char buffer[max_read_size];
-        auto client_fd = cContext[client_location].fd;
+        auto client_fd = clientData->clientFD.fd;
         int bufferLen = read(client_fd, buffer, max_read_size);
         char * temp = buffer;
         if(bufferLen > 0){
-            if(!parseRESPInput(temp, bufferLen, client_location)){
+            if(!parseRESPInput(temp, bufferLen, clientData)){
                 return 0;
             }
         }
@@ -226,11 +245,11 @@ bool readFromClientBuffer(int client_location){
     return 1;
 }
 
-bool writeToClientBuffer(int client_location){
+bool writeToClientBuffer(std::shared_ptr<clientContext> clientData){
     bool res = 1;
     try
     {
-        int sent = send(clients[client_location].fd, cContext[client_location].writeContext.c_str(), cContext[client_location].writeContext.size(), 0);
+        int sent = send(clientData->clientFD.fd, clientData->writeContext.c_str(), clientData->writeContext.size(), 0);
     }
     catch(const std::exception& e)
     {
@@ -241,9 +260,16 @@ bool writeToClientBuffer(int client_location){
     return res;
 }
 
-bool closeClient(int client_location){
-    // close(clients[i].fd);
-    // clients.erase(clients.begin() + i);
-    // cContext.erase(cContext.begin() + i);
-    // --i;
+bool clearClientContext(std::shared_ptr<clientContext> clientData){
+    try
+    {
+        clientData->readArguments.clear();
+        clientData->writeBeforeRESP.clear();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return 0;
+    }
+    return 1;
 }
