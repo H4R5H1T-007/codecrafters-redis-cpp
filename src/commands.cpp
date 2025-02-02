@@ -5,6 +5,8 @@
 #include <functional>
 #include <memory>
 
+std::unordered_map<std::string, std::string> kvStore;
+
 std::vector<std::string> split(std::string & input, const char & delimeter = ' '){
     std::vector<std::string> tokens;
     std::istringstream iss(input);
@@ -50,6 +52,47 @@ void ECHOCommand(std::shared_ptr<clientContext> clientData){
     return ;
 }
 
+void SETCommand(std::shared_ptr<clientContext> clientData){
+    auto *clientArgs = &(clientData->readArguments);
+    auto *write = &(clientData->writeBeforeRESP);
+    try
+    {
+        auto key = (*clientArgs)[1];
+        auto value = (*clientArgs)[2];
+        kvStore[key] = value;
+        (*write).push_back("OK");
+        createSimpleRESPString(clientData);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        (*write).push_back("Incorrect Command Arguments");
+        createSimpleErrorString(clientData);
+    }
+}
+
+void GETCommand(std::shared_ptr<clientContext> clientData){
+    auto *clientArgs = &(clientData->readArguments);
+    auto *write = &(clientData->writeBeforeRESP);
+    try
+    {
+        auto key = (*clientArgs)[1];
+        if(kvStore.find(key) != kvStore.end()){
+            (*write).push_back(kvStore[key]);
+            createBulkRESPString(clientData);
+        }
+        else{
+            nullBulkRESPString(clientData);
+        }
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        (*write).push_back("Incorrect Command Arguments");
+        createSimpleErrorString(clientData);
+    }
+}
+
 std::unordered_map<std::string, std::function<void(std::shared_ptr<clientContext>)>> commandsTable;
 
 bool cmdTableCreator(){
@@ -57,6 +100,8 @@ bool cmdTableCreator(){
     {
         commandsTable["PING"] = PINGCommand;
         commandsTable["ECHO"] = ECHOCommand;
+        commandsTable["SET"] = SETCommand;
+        commandsTable["GET"] = GETCommand;
     }
     catch(const std::exception& e)
     {

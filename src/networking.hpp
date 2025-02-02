@@ -30,7 +30,9 @@ bool parseRESPInput(char *&buffer, int &length, std::shared_ptr<clientContext> &
 bool pollServer();
 bool initServerConnection();
 bool createBulkRESPString(std::shared_ptr<clientContext> clientData);
+bool nullBulkRESPString(std::shared_ptr<clientContext> clientData);
 bool createSimpleRESPString(std::shared_ptr<clientContext> clientData);
+bool createSimpleErrorString(std::shared_ptr<clientContext> clientData);
 bool writeToClientBuffer(std::shared_ptr<clientContext> clientData);
 bool clearClientContext(std::shared_ptr<clientContext> clientData);
 

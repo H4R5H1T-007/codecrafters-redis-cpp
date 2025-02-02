@@ -185,6 +185,22 @@ bool pollServer(){
     return 1;
 }
 
+bool createSimpleErrorString(std::shared_ptr<clientContext> clientData){
+    try
+    {
+        /* code */
+        std::ostringstream res;
+        res<<'-'<<clientData->writeBeforeRESP[0]<<"\r\n";
+        clientData->writeContext = res.str();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return 0;
+    }
+    return 1;
+}
+
 bool createSimpleRESPString(std::shared_ptr<clientContext> clientData){
     try
     {
@@ -204,15 +220,25 @@ bool createSimpleRESPString(std::shared_ptr<clientContext> clientData){
 bool createBulkRESPString(std::shared_ptr<clientContext> clientData){
     try
     {
-        // int len = buffer.size();
         std::ostringstream res;
-        int len = clientData->writeBeforeRESP.size();
-        res<<"*"<<len<<"\r\n";
-
-        for(auto &token : clientData->writeBeforeRESP){
-            res<<'$'<<token.size()<<"\r\n"<<token<<"\r\n";
+        if(clientData->writeBeforeRESP.size() != 0){
+            res<<'$'<<clientData->writeBeforeRESP[0].size()<<"\r\n"<<clientData->writeBeforeRESP[0]<<"\r\n";
         }
         clientData->writeContext = res.str();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return 0;
+    }
+    
+    return 1;
+}
+
+bool nullBulkRESPString(std::shared_ptr<clientContext> clientData){
+    try
+    {
+        clientData->writeContext = "$-1\r\n";
     }
     catch(const std::exception& e)
     {
