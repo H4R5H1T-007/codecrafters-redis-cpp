@@ -4,8 +4,39 @@
 #include <unordered_map>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 
-std::unordered_map<std::string, std::string> kvStore;
+class valueStruct{
+    private:
+    TimeStamp ttl;
+    bool isttl;
+    std::string value;
+    public:
+    valueStruct(const std::string & v) : value{v} {
+        isttl = false;
+    }
+    valueStruct(const std::string & v, const TimeStamp & exp) : value{v}, ttl{exp} {
+        isttl = true;
+    }
+    void setValue(const std::string & v){
+        value = v;
+    }
+    void setTTL(const TimeStamp & exp){
+        isttl = true;
+        ttl = exp;
+    }
+    std::string getValue(){
+        return value;
+    }
+    TimeStamp getTTL(){
+        return ttl;
+    }
+    bool isTTL(){
+        return isttl;
+    }
+};
+
+std::unordered_map<std::string, valueStruct> kvStore;
 
 std::vector<std::string> split(std::string & input, const char & delimeter = ' '){
     std::vector<std::string> tokens;
@@ -52,6 +83,7 @@ void ECHOCommand(std::shared_ptr<clientContext> clientData){
     return ;
 }
 
+// TODO: Add TTL to keys like redis does.
 void SETCommand(std::shared_ptr<clientContext> clientData){
     auto *clientArgs = &(clientData->readArguments);
     auto *write = &(clientData->writeBeforeRESP);
@@ -59,7 +91,24 @@ void SETCommand(std::shared_ptr<clientContext> clientData){
     {
         auto key = (*clientArgs)[1];
         auto value = (*clientArgs)[2];
-        kvStore[key] = value;
+        auto [it, inserted] = kvStore.insert_or_assign(key, valueStruct{value});
+        auto valPtr = &(it->second);
+        
+        if((*clientArgs).size() > 3){
+            for(int arg = 3; arg < (*clientArgs).size(); arg++){
+                auto & tempArg = (*clientArgs)[arg];
+                for(auto &j : tempArg) j = tolower(j);
+                if(tempArg == "px"){
+                    auto parameter = std::stoll((*clientArgs)[arg + 1]);
+                    if(parameter < 0){
+                        throw std::runtime_error("Incorrect Parameter");
+                    }
+                    // el.timeSubmit()
+                    (*valPtr).setTTL(std::chrono::system_clock::now() + std::chrono::milliseconds(parameter));
+                    arg++;
+                }
+            }
+        }
         (*write).push_back("OK");
         createSimpleRESPString(clientData);
     }
@@ -77,12 +126,17 @@ void GETCommand(std::shared_ptr<clientContext> clientData){
     try
     {
         auto key = (*clientArgs)[1];
-        if(kvStore.find(key) != kvStore.end()){
-            (*write).push_back(kvStore[key]);
-            createBulkRESPString(clientData);
+        auto itr = kvStore.find(key);
+        if(itr == kvStore.end()){
+            nullBulkRESPString(clientData);
+        }
+        else if(itr->second.isTTL() && itr->second.getTTL() < std::chrono::system_clock::now()){
+            nullBulkRESPString(clientData);
+            kvStore.erase(itr);
         }
         else{
-            nullBulkRESPString(clientData);
+            (*write).push_back(itr->second.getValue());
+            createBulkRESPString(clientData);
         }
     }
     catch(const std::exception& e)
@@ -114,13 +168,19 @@ bool cmdTableCreator(){
 
 void commandsHandler(std::shared_ptr<clientContext> clientData){
     auto command = clientData->readArguments[0];
+    for(auto &i : command){
+        i = toupper(i);
+    }
     if (commandsTable.find(command) == commandsTable.end()){
         // Send error reply
         // Need to create reply function in networking.cpp
         std::cout<<"Command not found!\n";
-        return ;
+        clientData->writeBeforeRESP.push_back("Incorrect Command Entered");
+        createSimpleErrorString(clientData);
     }
-    commandsTable[command](clientData);
+    else{
+        commandsTable[command](clientData);
+    }
     clearClientContext(clientData);
     el.fileSubmit(writeToClientBuffer, clientData);
 }
